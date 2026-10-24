@@ -1,0 +1,14 @@
+~$3 - dudas.docx
+~$TP3.docx
+~$*.docx
+
+# Variables de entorno y credenciales
+.env
+.env.*
+!.env.example
+
+# Archivos del sistema macOS
+.DS_Store
+TP3 - dudas
+TP3 - dudas.docx
+~.docx

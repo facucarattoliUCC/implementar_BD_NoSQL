@@ -43,6 +43,7 @@ erDiagram
 		COMPUTER computer
 		decimal amount
 		CLIENT client
+        tinyint quantity 
 	}
 
     SELLER{
@@ -109,7 +110,7 @@ erDiagram
         "id_sale":
         "id_computer": 
         "amount":  
-
+        "quantity:"
         "Client":[
             {
                 "id_client": 
@@ -135,7 +136,11 @@ erDiagram
 <br>
 
 - Relaciones entre documentos:
-    - `Component`es referenciada por `Computer` ya que cada computadora tiene una lista de componentes con la cual sera armada. Por lo tanto dependiendo la computadora sera los componentes que utilizara. Ademas si un cliente quisiera comprar solo componentes individuales de esta manera seria posible ya que Component vive como una coleccion particular.   
+    - `Component`es referenciada por `Computer` ya que cada computadora tiene una lista de componentes con la cual sera armada. Por lo tanto dependiendo la computadora sera los componentes que utilizara. <br>
+
+    Decidimos no vender componentes de manera individual por cuestiones de tiempo y para que el diagrama sea mas sencillo y evitar el problema de tener que incrustar/embeber a `Component` en `Sale`            
+
     - En cambio con `Client`, `Seller` y `Sale` resulta logico embeber las coleeciones Cliente y Seller en Sale por dos motivos, uno es que son relaciones 1 venta contra muchos clientes y vendedores, y dos venta tendra obligatoriamente un cliente y vendedor. Estos dos motivos justifica la incrustacion de Cliente y Seller en Sale.  
         
+
     

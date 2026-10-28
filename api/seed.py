@@ -1,5 +1,13 @@
 """Loads sample data into MongoDB. Run: python seed.py"""
+<<<<<<< HEAD
 import copy
+=======
+import os
+
+from pymongo import MongoClient 
+
+db = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017"))[os.getenv("DB_NAME", "techcore")]
+>>>>>>> 7e8b33a1f9578e516a27b9b02e6d6fb12fac17dd
 
 components = [
     {"id_component": "cmp-001", "name_component": "AMD Ryzen 5 7600", "description_component": "CPU 6 cores AM5", "price_component": 220.0, "stock_component": 15},

@@ -1,9 +1,5 @@
 """Loads sample data into MongoDB. Run: python seed.py"""
-import os
-
-from pymongo import MongoClient
-
-db = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017"))[os.getenv("DB_NAME", "techcore")]
+import copy
 
 components = [
     {"id_component": "cmp-001", "name_component": "AMD Ryzen 5 7600", "description_component": "CPU 6 cores AM5", "price_component": 220.0, "stock_component": 15},
@@ -44,12 +40,20 @@ sales = [
      "date": "2026-10-25T12:10:00+00:00", "Client": [client_1], "Seller": [seller_2]},
 ]
 
-for name, docs in [("components", components), ("computers", computers), ("sales", sales)]:
-    db[name].delete_many({})
-    db[name].insert_many(docs)
-    print(f"{name}: {len(docs)} documents")
 
-db.components.create_index("id_component", unique=True)
-db.computers.create_index("id_computer", unique=True)
-db.sales.create_index("id_sale", unique=True)
-print("Done.")
+def load(db, verbose=False):
+    """Wipes the 3 collections and loads the sample data."""
+    for name, docs in [("components", components), ("computers", computers), ("sales", sales)]:
+        db[name].delete_many({})
+        db[name].insert_many(copy.deepcopy(docs))
+        if verbose:
+            print(f"{name}: {len(docs)} documents")
+    db.components.create_index("id_component", unique=True)
+    db.computers.create_index("id_computer", unique=True)
+    db.sales.create_index("id_sale", unique=True)
+
+
+if __name__ == "__main__":
+    from app import get_db
+    load(get_db(), verbose=True)
+    print("Done.")

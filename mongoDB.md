@@ -40,6 +40,7 @@ erDiagram
 	}
 	SALE {
 		string id PK
+        datetime date
 		COMPUTER computer
 		decimal amount
 		CLIENT client
@@ -111,6 +112,7 @@ erDiagram
         "id_computer": 
         "amount":  
         "quantity:"
+        "date:"
         "Client":[
             {
                 "id_client": 

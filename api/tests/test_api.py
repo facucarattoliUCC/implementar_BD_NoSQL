@@ -33,7 +33,7 @@ def client(db):
 
 
 # ---------------------------------------------------------------- CRUD
-@pytest.mark.parametrize("url,n", [("/components", 8), ("/computers", 3), ("/sales", 3)])
+@pytest.mark.parametrize("url,n", [("/components", 60), ("/computers", 40), ("/sales", 250)])
 def test_list(client, url, n):
     r = client.get(url)
     assert r.status_code == 200 and len(r.get_json()) == n
@@ -181,9 +181,29 @@ def test_database_error_returns_500(client, monkeypatch):
 
 
 # ---------------------------------------------------------------- extras
+def test_seed_data_is_valid(client):
+    """Every generated document passes the same validations as the API."""
+    from validators import (CLIENT_SCHEMA, COMPONENT_SCHEMA, COMPUTER_SCHEMA, SELLER_SCHEMA,
+                            validate_body, validate_id)
+    ids = {c["id_component"] for c in seed.components}
+    for c in seed.components:
+        validate_id("component", c["id_component"])
+        validate_body({k: v for k, v in c.items() if k != "id_component"}, COMPONENT_SCHEMA)
+    for pc in seed.computers:
+        validate_id("computer", pc["id_computer"])
+        validate_body({k: v for k, v in pc.items() if k != "id_computer"}, COMPUTER_SCHEMA)
+        assert set(pc["id_component"]) <= ids
+    for s in seed.sales:
+        validate_id("sale", s["id_sale"])
+        validate_body(s["Client"][0], CLIENT_SCHEMA)
+        validate_body(s["Seller"][0], SELLER_SCHEMA)
+    total = len(seed.components) + len(seed.computers) + len(seed.sales)
+    assert total >= 300
+
+
 def test_reports(client):
     assert client.get("/stock/low?threshold=2").status_code == 200
-    assert len(client.get("/reports/sellers").get_json()) == 2
+    assert len(client.get("/reports/sellers").get_json()) == 6
     assert client.get("/reports/top-computers?limit=2").status_code == 200
     r = client.post("/computers/build", json={"id_component": ["cmp-001", "cmp-008"]})
     assert r.get_json()["available"] is False

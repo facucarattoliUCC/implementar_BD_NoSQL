@@ -1,7 +1,7 @@
 """Loads sample data into MongoDB. Run: python seed.py"""
 import os
 
-from pymongo import MongoClient
+from pymongo import MongoClient 
 
 db = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017"))[os.getenv("DB_NAME", "techcore")]
 

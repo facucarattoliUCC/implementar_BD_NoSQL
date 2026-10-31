@@ -27,7 +27,7 @@ Prueba rápida: abrir `http://localhost:5000/computers/pc-001` en el navegador.
 
 ## 2. Modelo de datos
 
-La base `techcore` tiene **3 colecciones**. Clientes y vendedores no tienen colección propia: se guardan dentro de cada venta.
+La base `techcore` tiene **3 colecciones (Computer, Component, Sales)**. Clients y Sellers no tienen colección propia: se incrustan dentro de cada venta.
 
 ```mermaid
 erDiagram

@@ -14,7 +14,7 @@ from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError, PyMongoError
 from werkzeug.exceptions import HTTPException
 
-from repositories import ComponentRepository, ComputerRepository, SaleRepository
+from repositories import ComponentRepository, ComputerRepository, ReportRepository, SaleRepository
 from routes import components, computers, reports, sales
 from validators import ApiError
 
@@ -61,6 +61,7 @@ def create_app(db=None):
         components=ComponentRepository(db),
         computers=ComputerRepository(db),
         sales=SaleRepository(db),
+        reports=ReportRepository(db),
     )
 
     for bp in (components.bp, computers.bp, sales.bp, reports.bp):
@@ -73,5 +74,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     app = create_app()
     for repo in vars(app.extensions["repos"]).values():
-        repo.ensure_indexes()
+        if hasattr(repo, "ensure_indexes"):
+            repo.ensure_indexes()
     app.run(debug=True, port=5000)

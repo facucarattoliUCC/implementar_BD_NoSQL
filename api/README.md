@@ -27,7 +27,7 @@ Prueba rápida: abrir `http://localhost:5000/computers/pc-001` en el navegador.
 
 ## 2. Modelo de datos
 
-La base `techcore` tiene **3 colecciones (Computer, Component, Sales)**. Clients y Sellers no tienen colección propia: se incrustan dentro de cada venta.
+La base `techcore` tiene **3 colecciones**. Clientes y vendedores no tienen colección propia: se guardan dentro de cada venta.
 
 ```mermaid
 erDiagram
@@ -114,18 +114,21 @@ techcore-api/
 ├── app.py                 # Punto de entrada: create_app() arma la aplicación
 ├── validators.py          # Validaciones y la excepción ApiError
 ├── seed.py                # Datos de ejemplo
+├── analysis/
+│   └── reports_analysis.ipynb   # Análisis con gráficos de los reportes
 ├── requirements.txt
 ├── repositories/
 │   ├── base_repository.py       # CRUD genérico que heredan todos
 │   ├── component_repository.py  # + búsqueda con filtros, stock bajo
 │   ├── computer_repository.py   # + $lookup de componentes, manejo atómico de stock
-│   └── sale_repository.py       # + reportes con aggregation
+│   ├── sale_repository.py       # + búsqueda por cliente, vendedor o computadora
+│   └── report_repository.py     # Reportes (aggregation) que cruzan las 3 colecciones; solo lectura
 ├── routes/
 │   ├── __init__.py        # repos(): acceso a los repositorios desde cualquier ruta
 │   ├── components.py      # /components
 │   ├── computers.py       # /computers
 │   ├── sales.py           # /sales
-│   └── reports.py         # /stock/low, /reports/...
+│   └── reports.py         # /stock/low y /reports/*
 └── tests/
     └── test_api.py
 ```
@@ -165,8 +168,32 @@ Los errores no se manejan con `try/except` en cada ruta. Se lanza `ApiError(mens
 |---|---|---|
 | POST | `/computers/build` | Cotiza una PC a medida: recibe `{"id_component": [...]}` y devuelve el precio total y si hay stock. No guarda nada. |
 | GET | `/stock/low?threshold=5` | Componentes y computadoras con stock bajo |
-| GET | `/reports/sellers` | Total vendido y comisión ganada por vendedor |
-| GET | `/reports/top-computers?limit=5` | Computadoras más vendidas |
+
+### Reportes
+
+Son de solo lectura y se calculan con *aggregation pipelines* en `report_repository.py`. Todos devuelven una lista de filas planas (o un objeto, en `summary`), así que se pueden cargar directo en pandas:
+
+```python
+import pandas as pd, requests
+df = pd.DataFrame(requests.get("http://localhost:5000/reports/sales-by-month").json())
+```
+
+| Ruta | Qué devuelve (una fila por…) | Columnas |
+|---|---|---|
+| `/reports/summary` | Indicadores generales (un objeto) | `sales_count`, `units_sold`, `total_revenue`, `average_ticket`, `first_sale`, `last_sale`, `clients_count`, `sellers_count`, `computers_count`, `components_count` |
+| `/reports/sales-by-month` | Mes | `month`, `sales_count`, `units_sold`, `revenue` |
+| `/reports/sellers` | Vendedor | `id_seller`, `full_name_seller`, `commission_rate`, `sales_count`, `total_amount`, `commission_earned` |
+| `/reports/top-computers?limit=5` | Computadora más vendida | `id_computer`, `name_computer`, `units_sold`, `total_amount` |
+| `/reports/top-clients?limit=10` | Cliente que más gastó | `id_client`, `full_name_client`, `purchases`, `units_bought`, `total_spent`, `average_ticket` |
+| `/reports/sales-by-line` | Línea de producto (Gamer, Office, Creator…) | `line`, `sales_count`, `units_sold`, `revenue` |
+| `/reports/quantity-distribution` | Cantidad de unidades por venta (1, 2, 3…) | `quantity`, `sales_count`, `revenue` |
+| `/reports/price-ranges` | Rango de precio de las computadoras | `price_range`, `computers_count`, `stock`, `average_price` |
+| `/reports/component-usage?limit=10` | Componente más usado en las computadoras | `id_component`, `name_component`, `category`, `used_in_computers`, `stock_component` |
+| `/reports/inventory-by-category` | Categoría de componente (CPU, GPU, RAM…) | `category`, `components_count`, `out_of_stock`, `units_in_stock`, `inventory_value`, `average_price` |
+
+Dos datos no se guardan como campo y se derivan del texto: la **línea** de una computadora es la segunda palabra de su nombre (`TechCore Gamer 004` → `Gamer`), y la **categoría** de un componente es la primera palabra de su descripción (`GPU 12GB GDDR6` → `GPU`). Si se agrega un campo `type` o `category` a los documentos, alcanza con cambiar ese agrupamiento en `report_repository.py`.
+
+El redondeo a 2 decimales se aplica en Python y no con `$round`, para que los pipelines funcionen también en MongoDB anterior a 4.2 y en `mongomock`.
 
 ### Reglas de negocio
 
@@ -211,8 +238,8 @@ curl -X PATCH localhost:5000/components/cmp-003 -H "Content-Type: application/js
 
 No hace falta tocar rutas ni repositorios: los esquemas definen qué campos se aceptan.
 
-**Agregar una consulta nueva** (por ejemplo, ventas por mes):
-1. Crear el método en el repositorio correspondiente (`sale_repository.py`) con la consulta de PyMongo.
+**Agregar una consulta nueva** (por ejemplo, ventas por día de la semana):
+1. Crear el método en el repositorio correspondiente con la consulta de PyMongo. Si es un reporte, va en `report_repository.py`.
 2. Crear la ruta en `routes/` que valide los parámetros y llame a ese método.
 3. Agregar un test.
 
@@ -231,7 +258,20 @@ No hace falta tocar rutas ni repositorios: los esquemas definen qué campos se a
 
 ---
 
-## 6. Datos de ejemplo y tests
+## 6. Análisis de los reportes
+
+`analysis/reports_analysis.ipynb` es un notebook de Jupyter que consulta los endpoints de `/reports`, arma tablas con pandas y gráficos con matplotlib, y cierra cada sección con una lectura de los resultados y unas conclusiones generales.
+
+```bash
+python seed.py && python app.py        # en una terminal: la API tiene que estar corriendo
+jupyter lab analysis/                  # en otra terminal
+```
+
+Se puede apuntar a otra instancia cambiando `API_URL` en la celda de configuración. Como consulta la API en cada ejecución, los gráficos e indicadores se recalculan solos si cambian los datos, pero los textos de lectura están escritos sobre los datos del seed.
+
+---
+
+## 7. Datos de ejemplo y tests
 
 **`seed.py`** carga 60 componentes, 40 computadoras y 250 ventas. Los primeros documentos de cada colección están escritos a mano (`cmp-001` a `cmp-008`, `pc-001` a `pc-003`, `sale-001` a `sale-003`) y los tests dependen de ellos. El resto se genera con una semilla fija, así que siempre se obtienen los mismos datos. Las computadoras generadas siempre combinan piezas compatibles: el procesador y la motherboard tienen el mismo socket.
 
@@ -239,6 +279,7 @@ No hace falta tocar rutas ni repositorios: los esquemas definen qué campos se a
 - el CRUD completo de las tres colecciones;
 - el manejo de stock en ventas;
 - los errores 400, 404 y 500;
+- los reportes, comparando cada resultado con el mismo cálculo hecho en Python sobre los datos del seed;
 - la validez de los datos del seed.
 
 ```bash

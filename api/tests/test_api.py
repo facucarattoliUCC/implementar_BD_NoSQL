@@ -201,9 +201,87 @@ def test_seed_data_is_valid(client):
     assert total >= 300
 
 
-def test_reports(client):
-    assert client.get("/stock/low?threshold=2").status_code == 200
-    assert len(client.get("/reports/sellers").get_json()) == 6
-    assert client.get("/reports/top-computers?limit=2").status_code == 200
+def test_build_quote(client):
     r = client.post("/computers/build", json={"id_component": ["cmp-001", "cmp-008"]})
     assert r.get_json()["available"] is False
+
+
+# ---------------------------------------------------------------- reports
+# Each report is checked against the same number computed in plain Python from seed data.
+TOTAL_REVENUE = round(sum(s["amount"] for s in seed.sales), 2)
+
+
+@pytest.mark.parametrize("url", [
+    "/stock/low?threshold=2", "/reports/summary", "/reports/sales-by-month", "/reports/sellers",
+    "/reports/top-computers?limit=3", "/reports/top-clients?limit=3", "/reports/sales-by-line",
+    "/reports/quantity-distribution", "/reports/price-ranges", "/reports/component-usage?limit=3",
+    "/reports/inventory-by-category"])
+def test_report_ok(client, url):
+    r = client.get(url)
+    assert r.status_code == 200 and r.get_json()
+
+
+@pytest.mark.parametrize("url", ["/reports/top-clients?limit=0", "/reports/component-usage?limit=x",
+                                 "/reports/top-computers?limit=-1"])
+def test_report_invalid_limit(client, url):
+    assert client.get(url).status_code == 400
+
+
+def test_report_summary(client):
+    r = client.get("/reports/summary").get_json()
+    assert r["sales_count"] == 250
+    assert r["total_revenue"] == TOTAL_REVENUE
+    assert r["units_sold"] == sum(s["quantity"] for s in seed.sales)
+    assert r["clients_count"] == len({s["Client"][0]["id_client"] for s in seed.sales})
+    assert r["sellers_count"] == 6
+
+
+def test_report_sales_by_month(client):
+    rows = client.get("/reports/sales-by-month").get_json()
+    months = [r["month"] for r in rows]
+    assert months == sorted(months) and months[0] == "2026-01"
+    assert sum(r["sales_count"] for r in rows) == 250
+    assert round(sum(r["revenue"] for r in rows), 2) == TOTAL_REVENUE
+
+
+def test_report_sellers(client):
+    rows = client.get("/reports/sellers").get_json()
+    assert len(rows) == 6
+    for r in rows:
+        assert r["commission_earned"] == round(r["total_amount"] * r["commission_rate"], 2)
+
+
+def test_report_top_clients(client):
+    rows = client.get("/reports/top-clients?limit=5").get_json()
+    assert len(rows) == 5
+    spent = [r["total_spent"] for r in rows]
+    assert spent == sorted(spent, reverse=True)
+
+
+def test_report_sales_by_line(client):
+    rows = client.get("/reports/sales-by-line").get_json()
+    assert {r["line"] for r in rows} <= {"Gamer", "Creator", "Streamer", "Office", "Home"}
+    assert round(sum(r["revenue"] for r in rows), 2) == TOTAL_REVENUE
+
+
+def test_report_price_ranges(client):
+    rows = client.get("/reports/price-ranges").get_json()
+    assert rows[0]["price_range"] == "0-750"
+    assert sum(r["computers_count"] for r in rows) == 40
+
+
+def test_report_component_usage(client):
+    rows = client.get("/reports/component-usage?limit=1").get_json()
+    usage = {}
+    for pc in seed.computers:
+        for c in pc["id_component"]:
+            usage[c] = usage.get(c, 0) + 1
+    assert rows[0]["used_in_computers"] == max(usage.values())
+
+
+def test_report_inventory_by_category(client):
+    rows = client.get("/reports/inventory-by-category").get_json()
+    assert {r["category"] for r in rows} == {"CPU", "GPU", "RAM", "SSD", "Motherboard", "PSU", "Case"}
+    assert sum(r["components_count"] for r in rows) == 60
+    expected = round(sum(c["price_component"] * c["stock_component"] for c in seed.components), 2)
+    assert round(sum(r["inventory_value"] for r in rows), 2) == expected

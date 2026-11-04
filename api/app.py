@@ -15,7 +15,7 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 from werkzeug.exceptions import HTTPException
 
 from repositories import ComponentRepository, ComputerRepository, ReportRepository, SaleRepository
-from routes import components, computers, reports, sales
+from routes import components, computers, home, reports, sales
 from validators import ApiError
 
 
@@ -64,7 +64,7 @@ def create_app(db=None):
         reports=ReportRepository(db),
     )
 
-    for bp in (components.bp, computers.bp, sales.bp, reports.bp):
+    for bp in (home.bp, components.bp, computers.bp, sales.bp, reports.bp):
         app.register_blueprint(bp)
     register_error_handlers(app)
     return app

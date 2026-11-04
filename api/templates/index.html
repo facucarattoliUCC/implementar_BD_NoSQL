@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TechCore API</title>
+  <style>
+    :root {
+      --bg: #f7f7f5; --surface: #ffffff; --border: #e4e3de;
+      --ink: #111110; --ink-2: #55544f; --ink-3: #8a8983;
+      --accent: #2a78d6; --ok: #0c8a0c; --down: #c43535;
+      --get: #2a78d6; --post: #0c8a0c; --put: #b06f00; --patch: #8a5cd6; --delete: #c43535;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111110; --surface: #1a1a19; --border: #2e2e2b;
+        --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #8a8983;
+        --accent: #5598e7; --ok: #3cbf3c; --down: #e66767;
+        --get: #5598e7; --post: #3cbf3c; --put: #e0a030; --patch: #a48ff0; --delete: #e66767;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 920px; margin: 0 auto; padding: 48px 16px 64px; }
+    header { margin-bottom: 32px; }
+    h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.02em; }
+    .lead { margin: 0; color: var(--ink-2); }
+
+    .status {
+      display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 40px;
+    }
+    .card {
+      flex: 1 1 160px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .card .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); }
+    .card .value { font-size: 22px; font-weight: 600; margin-top: 2px; }
+    .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 2px; }
+    .ok .dot { background: var(--ok); }
+    .down .dot { background: var(--down); }
+    .ok .value { color: var(--ok); }
+    .down .value { color: var(--down); }
+    .hint { font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+    .hint code { font-family: var(--mono); }
+
+    h2 { font-size: 16px; margin: 32px 0 10px; }
+    .endpoints {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    }
+    .row {
+      display: grid; grid-template-columns: 72px minmax(0, 260px) 1fr; gap: 12px; align-items: baseline;
+      padding: 9px 16px; border-top: 1px solid var(--border);
+    }
+    .row:first-child { border-top: none; }
+    .method {
+      font: 600 11px/1 var(--mono); padding: 4px 0; border-radius: 4px; text-align: center;
+      color: var(--m); border: 1px solid var(--m);
+    }
+    .GET { --m: var(--get); } .POST { --m: var(--post); } .PUT { --m: var(--put); }
+    .PATCH { --m: var(--patch); } .DELETE { --m: var(--delete); }
+    .rule { font: 13px var(--mono); overflow-wrap: anywhere; }
+    .rule a { color: var(--accent); text-decoration: none; }
+    .rule a:hover { text-decoration: underline; }
+    .desc { color: var(--ink-2); font-size: 14px; }
+
+    .notes { margin-top: 40px; color: var(--ink-2); font-size: 14px; }
+    .notes code { font-family: var(--mono); font-size: 13px; }
+    footer { margin-top: 32px; font-size: 13px; color: var(--ink-3); }
+
+    @media (max-width: 640px) {
+      .row { grid-template-columns: 64px 1fr; }
+      .desc { grid-column: 2; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>TechCore API</h1>
+    <p class="lead">REST API for a computer e-commerce: components, computers, sales, stock and reports.</p>
+  </header>
+
+  <section class="status">
+    {% if status.ok %}
+      <div class="card ok">
+        <div class="label">Database</div>
+        <div class="value"><span class="dot"></span>Connected</div>
+        <div class="hint"><code>{{ status.database }}</code></div>
+      </div>
+      {% for name, count in status.counts.items() %}
+        <div class="card">
+          <div class="label">{{ name }}</div>
+          <div class="value">{{ "{:,}".format(count) }}</div>
+          <div class="hint">documents</div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="card down">
+        <div class="label">Database</div>
+        <div class="value"><span class="dot"></span>Not reachable</div>
+        <div class="hint">Check that MongoDB is running and that <code>MONGO_URI</code> is correct.</div>
+      </div>
+    {% endif %}
+  </section>
+
+  {% for section, items in groups.items() if items %}
+    <h2>{{ section }}</h2>
+    <div class="endpoints">
+      {% for e in items %}
+        <div class="row">
+          <span class="method {{ e.method }}">{{ e.method }}</span>
+          <span class="rule">
+            {% if e.link %}<a href="{{ e.link }}">{{ e.rule }}</a>{% else %}{{ e.rule }}{% endif %}
+          </span>
+          <span class="desc">{{ e.description }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+
+  <section class="notes">
+    <p>Routes in blue can be opened directly. The rest need an ID or a JSON body
+      (<code>Content-Type: application/json</code>). IDs use the format <code>&lt;prefix&gt;-&lt;alphanumeric&gt;</code>,
+      e.g. <code>cmp-001</code>, <code>pc-001</code>, <code>sale-001</code>.</p>
+    <p>Errors are returned as <code>{"error": "...", "status": code}</code>: 400 invalid data, 404 not found, 500 server error.</p>
+  </section>
+
+  <footer>See the README for the data model, architecture and examples.</footer>
+</main>
+</body>
+</html>

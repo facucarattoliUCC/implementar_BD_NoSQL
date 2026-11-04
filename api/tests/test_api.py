@@ -285,3 +285,22 @@ def test_report_inventory_by_category(client):
     assert sum(r["components_count"] for r in rows) == 60
     expected = round(sum(c["price_component"] * c["stock_component"] for c in seed.components), 2)
     assert round(sum(r["inventory_value"] for r in rows), 2) == expected
+
+
+# ---------------------------------------------------------------- home page
+def test_home_page(client):
+    r = client.get("/")
+    html = r.get_data(as_text=True)
+    assert r.status_code == 200 and r.content_type.startswith("text/html")
+    assert "Connected" in html
+    assert 'href="/reports/summary"' in html          # GET without params is a link
+    assert "/components/&lt;id_component&gt;" in html   # route with param is listed
+
+
+def test_home_page_database_down(client, monkeypatch):
+    def boom(*args, **kwargs):
+        raise ServerSelectionTimeoutError("Mongo is down")
+    monkeypatch.setattr(client.application.extensions["repos"].components.collection,
+                        "count_documents", boom)
+    r = client.get("/")
+    assert r.status_code == 200 and "Not reachable" in r.get_data(as_text=True)

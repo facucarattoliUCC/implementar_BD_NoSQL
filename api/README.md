@@ -1,4 +1,4 @@
-# TechCore API
+# API
 
 API REST para la gestión de un e-commerce de computadoras: catálogo de componentes, computadoras armadas, ventas, stock y reportes.
 
@@ -154,7 +154,7 @@ Los errores no se manejan con `try/except` en cada ruta. Se lanza `ApiError(mens
 | GET | `/<recurso>` | Lista, con filtros opcionales | 200 |
 | GET | `/<recurso>/<id>` | Obtiene uno | 200 |
 | POST | `/<recurso>` | Crea | 201 |
-| PUT | `/<recurso>/<id>` | Reemplaza el documento completo (todos los campos obligatorios) | 200 |
+| PUT | `/<recurso>/<id>` | Reemplaza el documento completo | 200 |
 | PATCH | `/<recurso>/<id>` | Modifica solo los campos enviados | 200 |
 | DELETE | `/<recurso>/<id>` | Elimina | 200 |
 
@@ -168,6 +168,14 @@ Los errores no se manejan con `try/except` en cada ruta. Se lanza `ApiError(mens
 |---|---|---|
 | POST | `/computers/build` | Cotiza una PC a medida: recibe `{"id_component": [...]}` y devuelve el precio total y si hay stock. No guarda nada. |
 | GET | `/stock/low?threshold=5` | Componentes y computadoras con stock bajo |
+
+### Índices
+| Entidad | Índice | Tarea | Ejemplo |
+|---|---|---|---|
+| Components | {key:‘id_component'} | para buscar componentes particulares. | def count_using_component(self, id_component) |
+| Computer | {key:‘id_computer'} | para buscar computadores específicas | def increment stock(self, id_computer, quantity) |
+| Sale | {key:id_sale} | para buscar y recuperar de ventas. | def find_by_id(self, id_) | 
+| Client & Seller| | al estar incrustados en Sale, sus índices se justifican solo para búsquedas específicas en sale_repository.| def search(self, id_client=None, id_seller=None, id_computer=None)|
 
 ### Reportes
 
@@ -286,3 +294,43 @@ Se puede apuntar a otra instancia cambiando `API_URL` en la celda de configuraci
 pytest -v                       # todos
 pytest -v -k sale               # solo los que contienen "sale" en el nombre
 ```
+## 8. Análisis de rendimiento de consultas
+
+### 1. Computadoras más vendidas
+
+`report_repository.py` → `top_computers(self, limit)`
+
+| Métrica | Valor | Descripción |
+|---|---|---|
+| Documentos analizados | 250 | Todos los documentos de la colección `sales` |
+| Documentos agrupados (`$group` ≡ `GROUP BY`) | 40 | Cantidad de `id_computer` distintos encontrados en las ventas |
+| Documentos devueltos | 5 | Cantidad fijada por `$limit` |
+| Tiempo de ejecución | 48 ms | |
+| Índice utilizado | `id_computer_1` | Lo usa el `$lookup` (≡ `JOIN`) para buscar cada computadora en `computers` |
+| Etapas | `$group` → `$sort` → `$limit` → `$lookup` → `$project` | |
+
+### 2. Cantidad de computadoras que usan un componente
+
+`computer_repository.py` → `count_using_component(self, id_component)`
+
+| Métrica | Valor | Descripción |
+|---|---|---|
+| Documentos analizados | 40 | Todos los documentos de la colección `computers` |
+| Documentos devueltos | 5 | Computadoras que usan el componente buscado |
+| Tiempo de ejecución | 3 ms | |
+| Filtro aplicado | `{ id_component: "cmp-003" }` | |
+| Índice utilizado | Ninguno | No existe un índice sobre `id_component` |
+| Etapa | `COLLSCAN` | Recorre la colección `computers` completa |
+
+### 3. Búsqueda de ventas por cliente
+
+`sale_repository.py` → `search(self, id_client=None, id_seller=None, id_computer=None)`
+
+| Métrica | Valor | Descripción |
+|---|---|---|
+| Documentos analizados | 250 | Todos los documentos de la colección `sales` |
+| Documentos devueltos | 4 | Ventas del cliente `cli-001` |
+| Tiempo de ejecución | 716 µs | |
+| Filtro aplicado | `{ "Client.id_client": "cli-001" }` | |
+| Índice utilizado | Ninguno | No existe un índice sobre `Client.id_client` |
+| Etapa | `COLLSCAN` | Recorre la colección `sales` completa para devolver solo 4 documentos |

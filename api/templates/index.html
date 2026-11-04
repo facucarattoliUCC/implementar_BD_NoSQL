@@ -69,6 +69,8 @@
 
     .notes { margin-top: 40px; color: var(--ink-2); font-size: 14px; }
     .notes code { font-family: var(--mono); font-size: 13px; }
+    .gif { margin-top: 32px; text-align: center; }
+    .gif img { max-width: 100%; width: 500px; height: auto; border-radius: 10px; }
     footer { margin-top: 32px; font-size: 13px; color: var(--ink-3); }
 
     @media (max-width: 640px) {
@@ -127,6 +129,10 @@
       (<code>Content-Type: application/json</code>). IDs use the format <code>&lt;prefix&gt;-&lt;alphanumeric&gt;</code>,
       e.g. <code>cmp-001</code>, <code>pc-001</code>, <code>sale-001</code>.</p>
     <p>Errors are returned as <code>{"error": "...", "status": code}</code>: 400 invalid data, 404 not found, 500 server error.</p>
+  </section>
+
+  <section class="gif">
+    <img src="{{ url_for('static', filename='footer.gif') }}" alt="IIIA IIIIA">
   </section>
 
   <footer>See the README for the data model, architecture and examples.</footer>

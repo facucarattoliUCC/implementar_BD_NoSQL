@@ -12,9 +12,7 @@
 **2.1 API como servicio del mismo entorno**
 
 
-Para cumplir esto, a la carpeta `/api` que esta dentro de la raiz del proyecto.
-
-en `dockeer_run.py` utiliza la logica de `app.py` para crear la API como servicio interno de docker.
+Para cumplir esto, a la carpeta `/api` que esta dentro de la raiz del proyecto, en `dockeer_run.py` utiliza la logica de `app.py` para crear la API como servicio interno de docker.
 
 
 **2.2 Desde la raíz del proyecto, ingresar a la carpeta `docker/`:**

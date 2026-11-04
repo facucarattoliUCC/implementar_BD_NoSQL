@@ -3,8 +3,14 @@ import logging
 
 from app import create_app
 
+def ensure_indexes(app):
+    """Crea índices solo en repositorios que heredan BaseRepository."""
+    repos = vars(app.extensions["repos"])
+    for name in ("components", "computers", "sales"):
+        repos[name].ensure_indexes()
+
+
 logging.basicConfig(level=logging.INFO)
 app = create_app()
-for repo in vars(app.extensions["repos"]).values():
-    repo.ensure_indexes()
+ensure_indexes(app)
 app.run(host="0.0.0.0", port=5000)
